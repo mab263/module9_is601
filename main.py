@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator  # Use @validator for Pydantic 1.x
 from fastapi.exceptions import RequestValidationError
-from app.operations import add, subtract, multiply, divide  # Ensure correct import path
+from app.operations import add, subtract, multiply, divide
 import uvicorn
 import logging
 
@@ -14,6 +14,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 # Setup templates directory
 templates = Jinja2Templates(directory="templates")
@@ -58,10 +62,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.get("/")
 async def read_root(request: Request):
-    """
-    Serve the index.html template.
-    """
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"request": request}
+    )
 
 @app.post("/add", response_model=OperationResponse, responses={400: {"model": ErrorResponse}})
 async def add_route(operation: OperationRequest):
@@ -101,9 +106,6 @@ async def multiply_route(operation: OperationRequest):
 
 @app.post("/divide", response_model=OperationResponse, responses={400: {"model": ErrorResponse}})
 async def divide_route(operation: OperationRequest):
-    """
-    Divide two numbers.
-    """
     try:
         result = divide(operation.a, operation.b)
         return OperationResponse(result=result)
@@ -113,6 +115,6 @@ async def divide_route(operation: OperationRequest):
     except Exception as e:
         logger.error(f"Divide Operation Internal Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
+    
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
